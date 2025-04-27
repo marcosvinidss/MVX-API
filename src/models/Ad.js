@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 mongoose.Promise = global.Promise;
 
-constmodelSchema = new mongoose.Schema({
+const modelSchema = new mongoose.Schema({
     idUser: String,
     state: String,
     category: String,
@@ -13,14 +13,12 @@ constmodelSchema = new mongoose.Schema({
     description: String,
     views: Number,
     status: String
-
 });
-
 
 const modelName = 'Ad';
 
-if(mongoose.connection && mongoose.connectionmodels[modelName]){
-    module.exports = mongoose.connectionmodels[modelName];
-}else{
+if (mongoose.connection && mongoose.connection.models[modelName]) {
+    module.exports = mongoose.connection.models[modelName];
+} else {
     module.exports = mongoose.model(modelName, modelSchema);
 }
