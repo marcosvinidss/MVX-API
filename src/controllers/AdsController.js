@@ -213,23 +213,20 @@ module.exports = {
 
     editAction: async (req, res) => {
         const { id } = req.params;
-        let { title, status, price, priceneg, desc, cat, images, token } = req.body;
+        let { title, status, price, priceneg, desc, cat, token } = req.body;
 
         if (!id || id.length < 12) {
-            res.json({ error: 'Id inválido' });
-            return;
+            return res.json({ error: 'Id inválido' });
         }
 
         const ad = await Ad.findById(id);
         if (!ad) {
-            res.json({ error: 'Anúncio Inexistente' });
-            return;
+            return res.json({ error: 'Anúncio Inexistente' });
         }
 
         const user = await User.findOne({ token });
         if (!user || user._id.toString() !== ad.idUser.toString()) {
-            res.json({ error: 'Este anúncio não é seu!' });
-            return;
+            return res.json({ error: 'Este anúncio não é seu!' });
         }
 
         let updates = {};
@@ -239,34 +236,96 @@ module.exports = {
         if (status !== undefined) updates.status = status;
         if (desc) updates.description = desc;
         if (cat) {
-            const category = await Category.findOne({ slug: cat });
+            const category = await Category.findById(cat);
             if (!category) {
-                res.json({ error: 'Categoria inexistente' });
-                return;
+                return res.json({ error: 'Categoria inexistente' });
             }
             updates.category = category._id.toString();
         }
-        if (images) updates.images = images;
 
-        await Ad.findByIdAndUpdate(id, { $set: updates });
+        // 🔹 Tratamento de imagens
+        let finalImages = [];
 
+        // 1. Pega as imagens existentes enviadas no body (mantidas pelo usuário)
+        if (req.body.images) {
+            try {
+                finalImages = JSON.parse(req.body.images);
+            } catch (e) {
+                finalImages = [];
+            }
+        }
+
+        // 2. Se o usuário enviou novas imagens, processa e adiciona
         if (req.files && req.files.img) {
-            const adUpdated = await Ad.findById(id);
             const files = Array.isArray(req.files.img) ? req.files.img : [req.files.img];
 
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
+            for (let file of files) {
                 if (['image/jpeg', 'image/jpg', 'image/png'].includes(file.mimetype)) {
                     const url = await addImage(file.data);
-                    adUpdated.images.push({
+                    finalImages.push({
                         url,
-                        default: adUpdated.images.length === 0
+                        default: finalImages.length === 0 // primeira imagem pode ser default
                     });
                 }
             }
-            await adUpdated.save();
         }
 
-        res.json({ error: '' });
+        // 3. Atualiza o anúncio
+        updates.images = finalImages;
+
+        await Ad.findByIdAndUpdate(id, { $set: updates });
+
+        return res.json({ success: true });
+    },
+
+    getListByUser: async (req, res) => {
+        const token = req.query.token;
+        if (!token) return res.json({ ads: [] });
+
+        const user = await User.findOne({ token }).exec();
+        if (!user) return res.json({ ads: [] });
+
+        const adsData = await Ad.find({ idUser: user._id }).sort({ dateCreated: -1 }).exec();
+
+        let ads = adsData.map(ad => {
+            let image = null;
+            if (ad.images && ad.images.length > 0) {
+                const defaultImg = ad.images.find(e => e.default);
+                image = defaultImg
+                    ? `${process.env.BASE}/media/${defaultImg.url}`
+                    : `${process.env.BASE}/media/${ad.images[0].url}`;
+            }
+            return {
+                id: ad._id,
+                title: ad.title,
+                price: ad.price,
+                priceNegotiable: ad.priceNegotiable,
+                image
+            };
+        });
+
+        res.json({ ads });
+    },
+    deleteAction: async (req, res) => {
+        const { id } = req.params;
+        const { token } = req.body;
+
+        if (!id || id.length < 12) {
+            return res.json({ error: "ID inválido" });
+        }
+
+        const ad = await Ad.findById(id);
+        if (!ad) {
+            return res.json({ error: "Anúncio não encontrado" });
+        }
+
+        const user = await User.findOne({ token });
+        if (!user || user._id.toString() !== ad.idUser.toString()) {
+            return res.json({ error: "Você não tem permissão para excluir este anúncio!" });
+        }
+
+        await Ad.findByIdAndDelete(id);
+
+        return res.json({ success: true });
     }
 };
