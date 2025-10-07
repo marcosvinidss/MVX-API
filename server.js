@@ -23,6 +23,8 @@ server.use(express.json());
 server.use(express.urlencoded({ extended: true }));
 server.use(fileupload());
 server.use(express.static(__dirname + "/public"));
+server.use("/media", express.static(__dirname + "/public/media"));
+
 
 server.use("/", apiRoutes)
 

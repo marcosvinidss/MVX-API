@@ -6,9 +6,12 @@ const modelSchema = new mongoose.Schema({
     email: String,
     state: String,
     password: String,
-    token: String
+    token: String,
+    favorites: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Ad'
+    }]
 });
-
 
 const modelName = 'User';
 

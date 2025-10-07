@@ -35,4 +35,7 @@ router.delete('/ad/:id', Auth.private, AdsController.deleteAction);
 router.get('/ad/list-by-user', Auth.private, AdsController.getListByUser);
 router.get("/ad/my-ads", AdsController.getListByUser);
 
+router.post('/ad/:id/favorite', Auth.private, UserController.toggleFavorite);
+router.get('/user/favorites', Auth.private, UserController.getFavorites);
+
 module.exports = router;
