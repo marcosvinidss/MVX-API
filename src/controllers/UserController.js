@@ -26,6 +26,7 @@ module.exports = {
   // Retorna informações do usuário logado
   info: async (req, res) => {
     try {
+      // seu fluxo atual autentica via token vindo na querystring
       const token = req.query.token;
       const user = await User.findOne({ token });
       if (!user) {
@@ -48,16 +49,19 @@ module.exports = {
             priceNegotiable: ad.priceNegotiable,
             description: ad.description,
             views: ad.views,
-            category: cat ? cat.slug : null,
+            category: cat ? cat.slug : null
           };
         })
       );
 
+      // >>> AQUI ESTÁ A MUDANÇA IMPORTANTE <<<
+      // Agora devolvemos também o _id do usuário como "id"
       res.json({
+        id: user._id,              // <- NECESSÁRIO pro ChatBox saber quem é o remetente
         name: user.name,
         email: user.email,
         state: state ? state.name : null,
-        ads: adList,
+        ads: adList
       });
     } catch (err) {
       console.error(err);
@@ -157,7 +161,7 @@ module.exports = {
             title: ad.title,
             price: ad.price,
             images: ad.images,
-            category: cat ? cat.slug : null,
+            category: cat ? cat.slug : null
           };
         })
       );
@@ -199,5 +203,5 @@ module.exports = {
       console.error(err);
       res.status(500).json({ msg: 'Erro ao excluir usuário.' });
     }
-  },
+  }
 };

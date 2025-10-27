@@ -14,6 +14,7 @@ const AuthController = require("./controllers/AuthController");
 const UserController = require("./controllers/UserController");
 const AdsController = require("./controllers/AdsController");
 const ReportController = require('./controllers/ReportController');
+const ChatController = require('./controllers/ChatController'); // <-- NOVO
 
 // ========================
 // 2️⃣ ROTAS PÚBLICAS
@@ -50,13 +51,26 @@ router.get('/report', Auth.private, ReportController.list);
 router.put('/report/:id/status', Auth.private, ReportController.updateStatus);
 
 // ========================
-// 4️⃣ ROTAS ADMINISTRATIVAS
+// 4️⃣ CHAT INTERNO
 // ========================
 
-// 🔐 Login do administrador
+// enviar mensagem
+router.post('/chat', Auth.private, ChatController.sendMessage);
+
+// histórico entre usuário logado e outro usuário, num anúncio
+router.get('/chat/:adId/:otherUserId', Auth.private, ChatController.getChatHistory);
+
+// lista de conversas recentes para a página /messages
+router.get('/chat/conversations', Auth.private, ChatController.getUserConversations);
+
+// ========================
+// 5️⃣ ROTAS ADMINISTRATIVAS
+// ========================
+
+// Login do administrador
 router.post('/admin/login', AuthController.adminSignin);
 
-// 🧩 ROTAS LIBERADAS (sem token)
+// Rotas "admin" (no seu código atual estão públicas)
 router.get('/admin/users', UserController.getAllUsers);
 router.delete('/admin/user/:id', UserController.deleteUser);
 

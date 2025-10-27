@@ -15,7 +15,12 @@ const addImage = async (buffer) => {
 
 const parsePrice = (price) => {
     if (!price) return 0;
-    price = price.toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+    price = price
+        .toString()
+        .replace('R$', '')
+        .replace(/\./g, '')
+        .replace(',', '.')
+        .trim();
     const num = parseFloat(price);
     return isNaN(num) ? 0 : num;
 };
@@ -66,7 +71,9 @@ module.exports = {
             category: cat
         });
 
-        const files = req.files?.img ? (Array.isArray(req.files.img) ? req.files.img : [req.files.img]) : [];
+        const files = req.files?.img
+            ? (Array.isArray(req.files.img) ? req.files.img : [req.files.img])
+            : [];
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
@@ -152,20 +159,22 @@ module.exports = {
             return;
         }
 
+        // contar visualizações
         ad.views++;
         await ad.save();
 
+        // imagens formatadas em URL completa
         let images = [];
         if (ad.images && ad.images.length > 0) {
             images = ad.images.map(img => `${process.env.BASE}/media/${img.url}`);
         }
 
-        const category = await Category.findById(ad.category);
-        const userInfo = await User.findById(ad.idUser);
+        // dono do anúncio
+        const ownerUser = await User.findById(ad.idUser);
         const stateInfo = await StateModel.findById(ad.state);
+        const category = await Category.findById(ad.category);
 
         let others = [];
-
         if (other) {
             const otherData = await Ad.find({ status: true, idUser: ad.idUser }).exec();
 
@@ -192,6 +201,9 @@ module.exports = {
             }
         }
 
+        // 🔥 AQUI ESTÁ A MUDANÇA IMPORTANTE:
+        // Agora enviamos o ID do dono do anúncio para o front.
+        // Isso alimenta o ChatBox (sellerId / receiverId).
         res.json({
             id: ad._id,
             title: ad.title,
@@ -203,9 +215,11 @@ module.exports = {
             images,
             category,
             userInfo: {
-                name: userInfo.name,
-                email: userInfo.email
+                id: ownerUser._id,           // <- ID do vendedor (NOVO)
+                name: ownerUser.name,
+                email: ownerUser.email
             },
+            idUser: ownerUser._id,          // <- redundância pra facilitar no front (NOVO)
             stateName: stateInfo.name,
             others
         });
@@ -243,10 +257,9 @@ module.exports = {
             updates.category = category._id.toString();
         }
 
-        // 🔹 Tratamento de imagens
+        // imagens
         let finalImages = [];
 
-        // 1. Pega as imagens existentes enviadas no body (mantidas pelo usuário)
         if (req.body.images) {
             try {
                 finalImages = JSON.parse(req.body.images);
@@ -255,7 +268,6 @@ module.exports = {
             }
         }
 
-        // 2. Se o usuário enviou novas imagens, processa e adiciona
         if (req.files && req.files.img) {
             const files = Array.isArray(req.files.img) ? req.files.img : [req.files.img];
 
@@ -264,13 +276,12 @@ module.exports = {
                     const url = await addImage(file.data);
                     finalImages.push({
                         url,
-                        default: finalImages.length === 0 // primeira imagem pode ser default
+                        default: finalImages.length === 0
                     });
                 }
             }
         }
 
-        // 3. Atualiza o anúncio
         updates.images = finalImages;
 
         await Ad.findByIdAndUpdate(id, { $set: updates });
@@ -306,6 +317,7 @@ module.exports = {
 
         res.json({ ads });
     },
+
     deleteAction: async (req, res) => {
         const { id } = req.params;
         const { token } = req.body;
