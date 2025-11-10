@@ -31,6 +31,7 @@ router.post('/user/signin', AuthValidator.signin, AuthController.signin);
 // ========================
 router.get('/user/me', Auth.private, UserController.info);
 router.put('/user/me', Auth.private, UserValidator.editAction, UserController.editAction);
+router.get('/user/:id', UserController.getUserById);
 
 // Favoritos
 router.post('/ad/:id/favorite', Auth.private, UserController.toggleFavorite);
@@ -62,6 +63,8 @@ router.get('/chat/:adId/:otherUserId', Auth.private, ChatController.getChatHisto
 
 // lista de conversas recentes para a página /messages
 router.get('/chat/conversations', Auth.private, ChatController.getUserConversations);
+
+
 
 // ========================
 // 5️⃣ ROTAS ADMINISTRATIVAS

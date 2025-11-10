@@ -65,3 +65,6 @@ const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => {
   console.log(`- Rodando no endereço: ${process.env.BASE}`);
 });
+
+const paymentMockRoutes = require("./src/routes/paymentMock");
+app.use("/payment", paymentMockRoutes);
