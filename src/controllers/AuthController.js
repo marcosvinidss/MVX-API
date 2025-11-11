@@ -6,66 +6,41 @@ const User = require('../models/User');
 const State = require('../models/State');
 
 module.exports = {
-  // ==== LOGIN DE USUÁRIO NORMAL ====
   signin: async (req, res) => {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.json({ error: errors.mapped() });
-    }
+    if (!errors.isEmpty()) return res.json({ error: errors.mapped() });
 
     const data = matchedData(req);
-
     const user = await User.findOne({ email: data.email });
-    if (!user) {
-      return res.json({ error: 'Email ou senha errados!' });
-    }
+    if (!user) return res.json({ error: 'Email ou senha errados!' });
 
     const match = await bcrypt.compare(data.password, user.password);
-    if (!match) {
-      return res.json({ error: 'Email ou senha errados!' });
-    }
+    if (!match) return res.json({ error: 'Email ou senha errados!' });
 
     const payload = (Date.now() + Math.random()).toString();
     const token = await bcrypt.hash(payload, 10);
+    await User.updateOne({ _id: user._id }, { $set: { token } });
 
-    user.token = token;
-    await user.save();
-
-    res.json({
+    return res.json({
       token,
       email: data.email,
-      role: user.role // devolve a role do usuário (user/admin)
+      role: user.role
     });
   },
 
-  // ==== CADASTRO DE USUÁRIO ====
   signup: async (req, res) => {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.json({ error: errors.mapped() });
-    }
+    if (!errors.isEmpty()) return res.json({ error: errors.mapped() });
 
     const data = matchedData(req);
-
     const user = await User.findOne({ email: data.email });
-    if (user) {
-      return res.json({
-        error: { email: { msg: 'O E-mail já existe!' } }
-      });
-    }
+    if (user) return res.json({ error: { email: { msg: 'O E-mail já existe!' } } });
 
-    if (!mongoose.Types.ObjectId.isValid(data.state)) {
-      return res.json({
-        error: { state: { msg: 'Código de estado inválido' } }
-      });
-    }
+    if (!mongoose.Types.ObjectId.isValid(data.state))
+      return res.json({ error: { state: { msg: 'Código de estado inválido' } } });
 
     const stateItem = await State.findById(data.state);
-    if (!stateItem) {
-      return res.json({
-        error: { state: { msg: 'O Estado não existe' } }
-      });
-    }
+    if (!stateItem) return res.json({ error: { state: { msg: 'O Estado não existe' } } });
 
     const passwordHash = await bcrypt.hash(data.password, 10);
     const payload = (Date.now() + Math.random()).toString();
@@ -77,37 +52,34 @@ module.exports = {
       password: passwordHash,
       token,
       state: data.state,
-      role: 'user' // padrão
+      role: 'user'
     });
 
     await newUser.save();
-    res.json({ token });
+    return res.json({ token });
   },
 
-  // ==== LOGIN DE ADMINISTRADOR ====
   adminSignin: async (req, res) => {
-    const { email, password } = req.body;
-
     try {
-      const admin = await User.findOne({ email });
+      const { email, password } = req.body || {};
+      if (!email || !password)
+        return res.status(400).json({ msg: 'E-mail e senha são obrigatórios.' });
 
-      // Verifica se o usuário existe e tem role = admin
-      if (!admin || admin.role !== 'admin') {
+      const admin = await User.findOne({ email });
+      if (!admin || admin.role !== 'admin')
         return res.status(403).json({ msg: 'Acesso negado: não é administrador.' });
-      }
+
+      if (!admin.password)
+        return res.status(500).json({ msg: 'Usuário sem hash de senha cadastrado.' });
 
       const match = await bcrypt.compare(password, admin.password);
-      if (!match) {
-        return res.status(401).json({ msg: 'Senha incorreta.' });
-      }
+      if (!match) return res.status(401).json({ msg: 'Senha incorreta.' });
 
       const payload = (Date.now() + Math.random()).toString();
       const token = await bcrypt.hash(payload, 10);
+      await User.updateOne({ _id: admin._id }, { $set: { token } });
 
-      admin.token = token;
-      await admin.save();
-
-      res.json({
+      return res.json({
         msg: 'Login de administrador bem-sucedido!',
         token,
         admin: {
@@ -116,8 +88,10 @@ module.exports = {
         }
       });
     } catch (err) {
-      console.error(err);
-      res.status(500).json({ msg: 'Erro interno no login de administrador.' });
+      console.error('[adminSignin]', err && err.message ? err.message : err);
+      return res
+        .status(500)
+        .json({ msg: 'Erro interno no login de administrador.', detail: String(err) });
     }
   }
 };
